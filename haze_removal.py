@@ -21,19 +21,24 @@ class HazeRemoval(object):
         self.dst = np.zeros_like(self.src, dtype=np.double)
         
 
-    @jit
-    def get_dark_channel(self, radius=7):
-        print("Starting to compute dark channel prior...")
-        start = time.time()
-        tmp = self.src.min(axis=2)
-        for i in range(self.rows):
-            for j in range(self.cols):
+    @staticmethod
+    # @jit(nopython=True)
+    def _get_dark_channel(rows,cols,tmp,dark, radius=7):
+
+        for i in range(rows):
+            for j in range(cols):
                 rmin = max(0,i-radius)
-                rmax = min(i+radius,self.rows-1)
+                rmax = min(i+radius,rows-1)
                 cmin = max(0,j-radius)
-                cmax = min(j+radius,self.cols-1)
-                self.dark[i,j] = tmp[rmin:rmax+1,cmin:cmax+1].min()
-        print("time:",time.time()-start)
+                cmax = min(j+radius,cols-1)
+                dark[i,j] = tmp[rmin:rmax+1,cmin:cmax+1].min()
+        return dark
+
+    def get_dark_channel(self, radius=7):
+        tmp = self.src.min(axis=2)
+        # get_dark_channel[blockspergrid, threadsperblock]()
+        # self.dark=self._get_dark_channel[self.blockspergrid, self.threadsperblock](self.rows,self.cols,tmp,self.dark,radius)
+        self.dark=self._get_dark_channel(self.rows,self.cols,tmp,self.dark,radius)
 
     def get_air_light(self):
         print("Starting to compute air light prior...")
@@ -48,19 +53,22 @@ class HazeRemoval(object):
         # print(self.Alight)
         print("time:",time.time()-start)
 
-    @jit
-    def get_transmission(self, radius=7, omega=0.95):
-        print("Starting to compute transmission...")
-        start = time.time()
-        for i in range(self.rows):
-            for j in range(self.cols):
+    @staticmethod
+    # @jit(nopython=True)
+    def _get_transmission(rows,cols,Alight,src,tran,radius=7, omega=0.95):
+
+        for i in range(rows):
+            for j in range(cols):
                 rmin = max(0,i-radius)
-                rmax = min(i+radius,self.rows-1)
+                rmax = min(i+radius,rows-1)
                 cmin = max(0,j-radius)
-                cmax = min(j+radius,self.cols-1)
-                pixel = (self.src[rmin:rmax+1,cmin:cmax+1]/self.Alight).min()
-                self.tran[i,j] = 1. - omega * pixel
-        print("time:",time.time()-start)
+                cmax = min(j+radius,cols-1)
+                pixel = (src[rmin:rmax+1,cmin:cmax+1]/Alight).min()
+                tran[i,j] = 1. - omega * pixel
+        return tran
+
+    def get_transmission(self, radius=7, omega=0.95):
+        self.tran=self._get_transmission(self.rows,self.cols,self.Alight,self.src,self.tran,radius,omega)
 
     def guided_filter(self, r=60, eps=0.001):
         print("Starting to compute guided filter trainsmission...")
