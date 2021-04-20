@@ -22,7 +22,7 @@ class HazeRemoval(object):
         
 
     @staticmethod
-    # @jit(nopython=True)
+    @jit(nopython=True)
     def _get_dark_channel(rows,cols,tmp,dark, radius=7):
 
         for i in range(rows):
@@ -54,7 +54,7 @@ class HazeRemoval(object):
         print("time:",time.time()-start)
 
     @staticmethod
-    # @jit(nopython=True)
+    @jit(nopython=True)
     def _get_transmission(rows,cols,Alight,src,tran,radius=7, omega=0.95):
 
         for i in range(rows):
